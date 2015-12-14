@@ -2,6 +2,7 @@ package lifxapiv1
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/go-zoo/bone"
 	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
 	jww "github.com/spf13/jwalterweatherman"
@@ -25,7 +26,12 @@ func (v *v1) RootHandler(w http.ResponseWriter, r *http.Request) {
 // LightsHandler handles the /lights/:selector route. It returns all lights for the given selector
 func (v *v1) LightsHandler(w http.ResponseWriter, r *http.Request) {
 	selector := bone.GetValue(r, "selector")
-	res := v.watchdog.GetForSelector(selector)
+	res, err := v.watchdog.GetForSelector(selector)
+	if err != nil {
+		w.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err))) // TODO: Better way to build this?
+		return
+	}
+
 	jww.INFO.Println("LightsHandler() got", len(res), "lights for selector", selector)
 
 	buf := new(bytes.Buffer)

@@ -1,7 +1,8 @@
 package watchdog
 
 import (
-	//"fmt"
+	"errors"
+	"fmt"
 	proto "github.com/joshproehl/go-lifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"sync"
@@ -105,7 +106,11 @@ func (w *Watchdog) GetLightCount() int {
 }
 
 // GetForSelector takes a selector string used by the LIFX HTTP API and returns the lights found by that selector
-func (w *Watchdog) GetForSelector(s string) []Light {
-	// TODO: Actually search...
-	return w.lights.All()
+func (w *Watchdog) GetForSelector(s string) ([]Light, error) {
+	switch s {
+	case "all":
+		return w.lights.All(), nil
+	default:
+		return nil, errors.New(fmt.Sprintf("Unknown selector type: '%s'", s))
+	}
 }
