@@ -5,6 +5,7 @@ import (
 	proto "github.com/joshproehl/go-lifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"sync"
+	"time"
 )
 
 // Watchdog monitors the messages coming over the LAN and keeps information about all of the Lights it hears.
@@ -43,9 +44,30 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 }
 
 // monitorAndUpdate listens to the local network and updates our state with what it hears.
+// for anything non-trivial this loop should dispatch on a new goroutine in order to let
+// the monitor keep looping and not miss any packets.
 func (w *Watchdog) monitorAndUpdate() {
 	go func(iw *Watchdog) {
+		// TODO: What if we update the conf while the watchdog is running?
+		rescanTicker := time.NewTicker(time.Duration(w.GetConf().RescanSeconds) * time.Second)
 
+		for {
+			select {
+			case <-rescanTicker.C:
+				iw.SendMessage(proto.LightGet{})
+			case err := <-(*iw).errors:
+				jww.ERROR.Println("Recieved Error:", err)
+			case msg := <-(*iw).messages:
+				// We've recieved a message, dispatch it!
+				switch p := msg.Payload.(type) {
+				case *proto.LightState:
+					jww.INFO.Println("Heard updated state", p, "for ip", msg.From.String())
+					go (*iw.lights).updateStateForIP(p, msg.From.String())
+				case *proto.DeviceStateWifiInfo:
+					jww.INFO.Println("Heard Wifi Info", p, "from ip", msg.From.String())
+				}
+			}
+		}
 	}(w)
 }
 

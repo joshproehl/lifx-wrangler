@@ -1,6 +1,7 @@
 package lifxapiv1
 
 import (
+	"bytes"
 	"github.com/go-zoo/bone"
 	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
 	jww "github.com/spf13/jwalterweatherman"
@@ -21,47 +22,23 @@ func (v *v1) RootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"error\":\"Please visit one of the API URL's\"}"))
 }
 
-/*
-  {
-    "id": "d3b2f2d97452",
-    "uuid": "8fa5f072-af97-44ed-ae54-e70fd7bd9d20",
-    "label": "Left Lamp",
-    "connected": true,
-    "power": "on",
-    "color": {
-      "hue": 250.0,
-      "saturation": 0.5,
-      "kelvin": 3500
-    },
-    "brightness": 0.5,
-    "group": {
-      "id": "1c8de82b81f445e7cfaafae49b259c71",
-      "name": "Lounge"
-    },
-    "location": {
-      "id": "1d6fe8ef0fde4c6d77b0012dc736662c",
-      "name": "Home"
-    },
-    "last_seen": "2015-03-02T08:53:02.867+00:00",
-    "seconds_since_seen": 0.002869418,
-    "product": {
-      "name": "Original 1000",
-      "company": "LIFX",
-      "identifier": "lifx_original_1000",
-      "capabilities": {
-        "has_color": true,
-        "has_variable_color_temp": true
-      }
-    }
-  }
-*/
-
 // LightsHandler handles the /lights/:selector route. It returns all lights for the given selector
 func (v *v1) LightsHandler(w http.ResponseWriter, r *http.Request) {
 	selector := bone.GetValue(r, "selector")
 	res := v.watchdog.GetForSelector(selector)
 	jww.INFO.Println("LightsHandler() got", len(res), "lights for selector", selector)
-	w.Write([]byte("{\"error\":\"Can't write currently...\"}"))
+
+	buf := new(bytes.Buffer)
+	buf.WriteString("[")
+	resCount := len(res)
+	for i, l := range res {
+		buf.WriteString(lightsHandlerJSON(l))
+		if i < resCount-1 {
+			buf.WriteString(",")
+		}
+	}
+	buf.WriteString("]")
+	w.Write(buf.Bytes())
 }
 
 // LightsStateHandler handles the /lights/:selector/state route.

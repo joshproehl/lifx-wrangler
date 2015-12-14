@@ -36,7 +36,7 @@ func main() {
 	jww.INFO.Println("Starting run at", time.Now().Format("2006-01-02 15:04:05"))
 
 	// get a new Watchdog, and set it's configuration.
-	watchdog = wd.NewLifxWatchdog(&wd.WatchdogConf{RescanSeconds: 30})
+	watchdog = wd.NewLifxWatchdog(&wd.WatchdogConf{RescanSeconds: 10})
 
 	// Set up the HTTP router, followed by all the routes
 	router := bone.New()
