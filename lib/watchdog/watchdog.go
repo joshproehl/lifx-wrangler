@@ -1,8 +1,8 @@
 package watchdog
 
 import (
-	"errors"
-	"fmt"
+	//"errors"
+	//"fmt"
 	proto "github.com/joshproehl/go-lifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"sync"
@@ -12,14 +12,13 @@ import (
 // Watchdog monitors the messages coming over the LAN and keeps information about all of the Lights it hears.
 // It also acts as client, and allows interaction with lights on the LAN.
 type Watchdog struct {
-	connected  bool
-	connection *proto.Connection
-	messages   <-chan proto.Message
-	errors     <-chan error
-	lights     *LightCollection
-	lightsLock sync.RWMutex
-	conf       *WatchdogConf
-	confLock   sync.RWMutex
+	connected       bool
+	connection      *proto.Connection
+	messages        <-chan proto.Message
+	errors          <-chan error
+	LightCollection *LightCollection
+	conf            *WatchdogConf
+	confLock        sync.RWMutex
 }
 
 // NewLifxWatchdog creates a new watchdog and starts it monitoring the LAN.
@@ -34,7 +33,7 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 
 	w.messages = messages
 	w.errors = errors
-	w.lights = NewLightCollection(w)
+	w.LightCollection = NewLightCollection(w)
 
 	w.monitorAndUpdate()
 
@@ -63,7 +62,7 @@ func (w *Watchdog) monitorAndUpdate() {
 				switch p := msg.Payload.(type) {
 				case *proto.LightState:
 					jww.INFO.Println("Heard updated state", p, "for ip", msg.From.String())
-					go (*iw.lights).updateStateForIP(p, msg.From.String())
+					go (*iw.LightCollection).updateStateForIP(p, msg.From.String())
 				case *proto.DeviceStateWifiInfo:
 					jww.INFO.Println("Heard Wifi Info", p, "from ip", msg.From.String())
 				}
@@ -100,17 +99,5 @@ func (w *Watchdog) SetConf(nc *WatchdogConf) {
 
 // GetLightCount returns the number of lights that we're currently tracking
 func (w *Watchdog) GetLightCount() int {
-	w.lightsLock.RLock()
-	defer w.lightsLock.RUnlock()
-	return w.lights.Count()
-}
-
-// GetForSelector takes a selector string used by the LIFX HTTP API and returns the lights found by that selector
-func (w *Watchdog) GetForSelector(s string) ([]Light, error) {
-	switch s {
-	case "all":
-		return w.lights.All(), nil
-	default:
-		return nil, errors.New(fmt.Sprintf("Unknown selector type: '%s'", s))
-	}
+	return w.LightCollection.Count()
 }

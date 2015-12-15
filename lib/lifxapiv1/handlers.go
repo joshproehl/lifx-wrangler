@@ -4,19 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/go-zoo/bone"
-	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
+	//wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
 	jww "github.com/spf13/jwalterweatherman"
 	"net/http"
 	//"strings"
 )
-
-type v1 struct {
-	watchdog *wd.Watchdog
-}
-
-func NewLifxCloudV1APICloneHandlers(w *wd.Watchdog) *v1 {
-	return &v1{watchdog: w}
-}
 
 // Handle a request tho the root reesource. No results found here. TODO: Clone whatever the HTTP API does for this
 func (v *v1) RootHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +20,7 @@ func (v *v1) RootHandler(w http.ResponseWriter, r *http.Request) {
 func (v *v1) LightsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	selector := bone.GetValue(r, "selector")
-	res, err := v.watchdog.GetForSelector(selector)
+	res, err := v.GetForSelector(selector)
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err))) // TODO: Better way to build this?
 		return

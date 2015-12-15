@@ -64,3 +64,20 @@ func (lc *LightCollection) GetOrCreateLightForIP(ips string) *Light {
 		return nl
 	}
 }
+
+// GetForLabel returns immutable copies of the lights which have the given label.
+// Ideally this should only return a single light, but we want to account for the possibility of duplicate labels, confusing though that may make things.
+func (lc *LightCollection) GetForLabel(lbl string) []Light {
+	ret := make([]Light, 0)
+
+	lc.lightsLock.RLock()
+	defer lc.lightsLock.RUnlock()
+
+	for _, l := range lc.lights {
+		if l.Label() == lbl {
+			ret = append(ret, *l)
+		}
+	}
+
+	return ret
+}
