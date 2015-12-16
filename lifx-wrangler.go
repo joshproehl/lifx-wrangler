@@ -19,7 +19,7 @@ func main() {
 	flgPortNum := flag.Int("port", 7688, "The port to run the HTTP server on.") // 7688 = "LX"
 	flgUpdateMillis := flag.Int("updateMillis", 1000, "How many milliseconds between each re-check of the bulb. Should not be lower than 50. (20 requests per second)")
 	flgMQTTServer := flag.String("mqttServer", "", "The MQTT URL (tcp://localhost:1833) to use. If not set MQTT will be disabled.")
-	flgMQTTChannelPrefix := flag.String("mqttChannelPrefix", "lifx-wrangler/", "Prefix MQTT channels to use")
+	flgMQTTTopicPrefix := flag.String("mqttTopicPrefix", "lifx-wrangler/", "All our mqtt topics get this prefix")
 	flgMQTTDeviceID := flag.String("mqttDeviceId", "lifx-wrangler", "The MQTT Device ID to use")
 	flag.Parse()
 
@@ -44,6 +44,9 @@ func main() {
 		*flgUpdateMillis = 50
 		jww.CRITICAL.Println("UpdateMillis was set to low, resetting to 50.")
 	}
+	if (*flgMQTTTopicPrefix)[len(*flgMQTTTopicPrefix)-1:] != "/" {
+		// TODO: Append trailing / to topic prefix
+	}
 
 	// Build a configuration and get a new watchdog for it.
 	watchdog = wd.NewLifxWatchdog(&wd.WatchdogConf{
@@ -51,7 +54,7 @@ func main() {
 		BulbUpdateStateMillis:  *flgUpdateMillis,
 		BulbUpdateOtherSeconds: 10, // TODO: Tune this.
 		MQTTServer:             *flgMQTTServer,
-		MQTTChannelPrefix:      *flgMQTTChannelPrefix,
+		MQTTTopicPrefix:        *flgMQTTTopicPrefix,
 		MQTTDeviceID:           *flgMQTTDeviceID,
 	})
 

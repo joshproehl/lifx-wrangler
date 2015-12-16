@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"fmt"
 	proto "github.com/joshproehl/go-lifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"sync"
@@ -44,7 +45,14 @@ func (lc *LightCollection) All() []Light {
 
 // updateForStateMessage takes a state message, finds the bulb in this collection, and updates it's values
 func (lc *LightCollection) updateStateForIP(m *proto.LightState, ip string) {
-	lc.GetOrCreateLightForIP(ip).SetState(m)
+	l := lc.GetOrCreateLightForIP(ip)
+	l.SetState(m)
+
+	lc.watchdog.mqttPublish(fmt.Sprintf("states/byip/%s", ip), fmt.Sprintf("GotState for %s", m.Label))
+}
+
+func (lc *LightCollection) RefreshBulbStates() {
+
 }
 
 // LightForIP gets the pointer to the light for given IP string. If no light is found it creates a new one in the collection.

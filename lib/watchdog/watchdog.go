@@ -2,9 +2,11 @@ package watchdog
 
 import (
 	//"errors"
-	//"fmt"
+	"fmt"
+	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	proto "github.com/joshproehl/go-lifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,6 +19,7 @@ type Watchdog struct {
 	messages        <-chan proto.Message
 	errors          <-chan error
 	LightCollection *LightCollection
+	mqttClient      *mqtt.Client
 	conf            *WatchdogConf
 	confLock        sync.RWMutex
 }
@@ -35,12 +38,52 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 	w.errors = errors
 	w.LightCollection = NewLightCollection(w)
 
+	if c.MQTTServer != "" {
+		opts := mqtt.NewClientOptions().AddBroker(c.MQTTServer).SetClientID(c.MQTTDeviceID).SetCleanSession(true)
+		// TODO: Subscribe to correct topics and handle errors
+		opts.OnConnect = func(c *mqtt.Client) {
+			if token := c.Subscribe("topic", 1, mqttMessageReceived); token.Wait() && token.Error() != nil {
+				panic(token.Error())
+			}
+		}
+
+		w.mqttClient = mqtt.NewClient(opts)
+
+		if token := w.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
+	}
+
+	// Start the watchdog listening for packets from bulbs!
 	w.monitorAndUpdate()
 
 	w.SendMessage(proto.LightGet{})
 
 	jww.INFO.Println("Watchdog up and running.")
 	return w
+}
+
+// Shutdown stops the watchdog and closes all resources.
+func (w *Watchdog) Shutdown() {
+	w.mqttClient.Disconnect(250)
+}
+
+func mqttMessageReceived(client *mqtt.Client, msg mqtt.Message) {
+	topics := strings.Split(msg.Topic(), "/")
+	msgFrom := topics[len(topics)-1]
+	fmt.Print(msgFrom + ": " + string(msg.Payload()))
+}
+
+func (w *Watchdog) mqttPublish(topic string, message string) error {
+	if w.mqttClient == nil {
+		return fmt.Errorf("Watchdog has no MQTT client")
+	}
+
+	fullTopic := fmt.Sprintf("%s%s", w.conf.MQTTTopicPrefix, topic) // TODO: This isn't how we should access conf...
+	if token := w.mqttClient.Publish(fullTopic, 1, false, message); token.Wait() && token.Error() != nil {
+		fmt.Println("Failed to send message")
+	}
+	return nil
 }
 
 // monitorAndUpdate listens to the local network and updates our state with what it hears.
