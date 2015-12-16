@@ -17,6 +17,10 @@ func main() {
 	// Set up command line flags
 	flgVerbose := flag.Bool("verbose", false, "Output additional debugging information to both STDOUT and the log file")
 	flgPortNum := flag.Int("port", 7688, "The port to run the HTTP server on.") // 7688 = "LX"
+	flgUpdateMillis := flag.Int("updateMillis", 1000, "How many milliseconds between each re-check of the bulb. Should not be lower than 50. (20 requests per second)")
+	flgMQTTServer := flag.String("mqttServer", "", "The MQTT URL (tcp://localhost:1833) to use. If not set MQTT will be disabled.")
+	flgMQTTChannelPrefix := flag.String("mqttChannelPrefix", "lifx-wrangler/", "Prefix MQTT channels to use")
+	flgMQTTDeviceID := flag.String("mqttDeviceId", "lifx-wrangler", "The MQTT Device ID to use")
 	flag.Parse()
 
 	// Note at this point only WARN or above is actually logged to file, and ERROR or above to console.
@@ -35,8 +39,21 @@ func main() {
 
 	jww.INFO.Println("Starting run at", time.Now().Format("2006-01-02 15:04:05"))
 
-	// get a new Watchdog, and set it's configuration.
-	watchdog = wd.NewLifxWatchdog(&wd.WatchdogConf{RescanSeconds: 10})
+	// Sanity checking inputs
+	if *flgUpdateMillis < 50 {
+		*flgUpdateMillis = 50
+		jww.CRITICAL.Println("UpdateMillis was set to low, resetting to 50.")
+	}
+
+	// Build a configuration and get a new watchdog for it.
+	watchdog = wd.NewLifxWatchdog(&wd.WatchdogConf{
+		RescanSeconds:          30,
+		BulbUpdateStateMillis:  *flgUpdateMillis,
+		BulbUpdateOtherSeconds: 10, // TODO: Tune this.
+		MQTTServer:             *flgMQTTServer,
+		MQTTChannelPrefix:      *flgMQTTChannelPrefix,
+		MQTTDeviceID:           *flgMQTTDeviceID,
+	})
 
 	// Set up the HTTP router, followed by all the routes
 	router := bone.New()
