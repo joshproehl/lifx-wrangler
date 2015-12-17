@@ -115,13 +115,13 @@ func (w *Watchdog) monitorAndUpdate() {
 }
 
 // SendMessage sends a payload out over the network and returns
-// TODO: WTF are we returning here? (Copied from bjeanes/go-lifx client)
-func (w *Watchdog) SendMessage(payload proto.Payload) (data []byte, error error) {
+func (w *Watchdog) SendMessage(payload proto.Payload) ([]byte, error) {
 	msg := proto.Message{}
 	msg.Payload = payload
+	//data := make([]byte, 0)
 
-	w.connection.WriteMessage(msg)
-	return data, nil
+	err := w.connection.WriteMessage(msg)
+	return nil, err
 }
 
 // GetConf returns the current configuration of the Watchdog

@@ -19,7 +19,7 @@ var (
 )
 
 // GetForSelector takes a selector string used by the LIFX HTTP API and returns the lights managed by the watchdog that are found by that selector
-func (v *v1) GetForSelector(s string) ([]wd.Light, error) {
+func (v *v1) GetForSelector(s string) ([]*wd.Light, error) {
 	switch {
 	case regexAll.MatchString(s):
 		return v.watchdog.LightCollection.All(), nil

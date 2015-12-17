@@ -51,6 +51,28 @@ func (v *v1) LightsStateHandler(w http.ResponseWriter, r *http.Request) {
 func (v *v1) LightsToggleHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	selector := bone.GetValue(r, "selector")
+	res, err := v.GetForSelector(selector)
+	if err != nil {
+		w.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err))) // TODO: Better way to build this?
+		return
+	}
+
+	jww.INFO.Println("LightsToggleHandler() got", len(res), "lights for selector", selector)
+
+	buf := new(bytes.Buffer)
+	buf.WriteString("{\"results\":[")
+	resCount := len(res)
+	for i, l := range res {
+		l.TurnOff()
+		buf.WriteString(lightsToggleHandlerJSON(l))
+
+		if i < resCount-1 {
+			buf.WriteString(",")
+		}
+	}
+	buf.WriteString("]}")
+	w.Write(buf.Bytes())
 }
 
 // LightsBreatheHandler handles the /lights/:selector/effects/breathe" route.

@@ -48,7 +48,7 @@ const (
     }
   }
 */
-func lightsHandlerJSON(l wd.Light) string {
+func lightsHandlerJSON(l *wd.Light) string {
 	s := l.GetState()
 	buf := new(bytes.Buffer)
 
@@ -81,6 +81,35 @@ func lightsHandlerJSON(l wd.Light) string {
 	buf.WriteString("\"capabilities\": {")
 	buf.WriteString("}")
 	buf.WriteString("}")
+	buf.WriteString("}")
+
+	return buf.String()
+}
+
+/*
+	lightsToggleHandlerJSON takes a watchdog.Light object, and marshals it into the specific JSON required to mimic the lifx v1 api toggle route
+
+	Example JSON object:
+	{
+		"results": [
+			{
+				"id": "d3b2f2d97452",
+				"label": "Left Lamp",
+				"status": "ok"
+			}
+		]
+	}
+
+	Note that we're actually creating one of the objects from inside the results array here.
+*/
+func lightsToggleHandlerJSON(l *wd.Light) string {
+	s := l.GetState()
+	buf := new(bytes.Buffer)
+
+	buf.WriteString("{")
+	buf.WriteString("\"id\": \"\",")
+	buf.WriteString("\"label\": \"" + s.Label.String() + "\",")
+	buf.WriteString("\"status\": \"\"")
 	buf.WriteString("}")
 
 	return buf.String()

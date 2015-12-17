@@ -2,8 +2,9 @@ package watchdog
 
 import (
 	//"encoding/json"
+	"fmt"
 	proto "github.com/joshproehl/go-lifx/protocol"
-	//jww "github.com/spf13/jwalterweatherman"
+	jww "github.com/spf13/jwalterweatherman"
 	"sync"
 	"time"
 )
@@ -17,9 +18,10 @@ type Light struct {
 	mutex sync.RWMutex
 }
 
-func NewLight() *Light {
+func NewLight(w *Watchdog) *Light {
 	return &Light{
-		mutex: *new(sync.RWMutex),
+		Watchdog: w,
+		mutex:    *new(sync.RWMutex),
 	}
 }
 
@@ -56,11 +58,16 @@ func (l *Light) SetState(s *proto.LightState) {
 }
 
 // TurnOff sends a power-off message to the device
-func (l Light) TurnOff() {
-	l.Watchdog.SendMessage(proto.DeviceSetPower{Level: 0})
+func (l *Light) TurnOff() {
+	w := *l.Watchdog
+	jww.CRITICAL.Println(fmt.Sprintf("Watchdog is %v", w))
+	_, err := l.Watchdog.SendMessage(proto.DeviceSetPower{Level: 0})
+	if err != nil {
+		panic("FAILED TO TURN OFF")
+	}
 }
 
 // TurnOn sends a power-on message to the device
-func (l Light) TurnOn() {
+func (l *Light) TurnOn() {
 	l.Watchdog.SendMessage(proto.DeviceSetPower{Level: 1})
 }

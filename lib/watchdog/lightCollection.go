@@ -29,26 +29,24 @@ func (lc *LightCollection) Count() int {
 	return len(lc.lights)
 }
 
-// All gives us an immutable copy of the Lights in this collection
-func (lc *LightCollection) All() []Light {
+// All returns pointers to to every light *CURRENTLY* being managed. Note that it does NOT return a pointer to the
+// managed array, so if a new light is added later, whatever holds this pointer won't get that update.
+func (lc *LightCollection) All() []*Light {
 	lc.lightsLock.RLock()
 	defer lc.lightsLock.RUnlock()
 
-	// Map "value, not pointer!" acress the lights
-	ls := make([]Light, len(lc.lights))
-	for i, l := range lc.lights {
-		ls[i] = *l
-	}
+	lightCopy := append([]*Light(nil), lc.lights...)
 
-	return ls
+	return lightCopy
 }
 
 // updateForStateMessage takes a state message, finds the bulb in this collection, and updates it's values
 func (lc *LightCollection) updateStateForIP(m *proto.LightState, ip string) {
 	l := lc.GetOrCreateLightForIP(ip)
+	// TODO: Only setstate and publish if deepequal of existing state and new state are not the same.
 	l.SetState(m)
 
-	lc.watchdog.mqttPublish(fmt.Sprintf("states/byip/%s", ip), fmt.Sprintf("GotState for %s", m.Label))
+	lc.watchdog.mqttPublish(fmt.Sprintf("bulbs/byip/state/%s", ip), fmt.Sprintf("GotState for %s", m.Label))
 }
 
 func (lc *LightCollection) RefreshBulbStates() {
@@ -65,7 +63,7 @@ func (lc *LightCollection) GetOrCreateLightForIP(ips string) *Light {
 	} else {
 		lc.lightsLock.Lock() // TODO: We have a potential race condition here if something ELSE is trying to access the lock and gets inbetween these two calls!
 
-		nl := NewLight()
+		nl := NewLight(lc.watchdog)
 		lc.lights = append(lc.lights, nl)
 		lc.lightsByIP[ips] = nl
 		lc.lightsLock.Unlock()
@@ -75,15 +73,15 @@ func (lc *LightCollection) GetOrCreateLightForIP(ips string) *Light {
 
 // GetForLabel returns immutable copies of the lights which have the given label.
 // Ideally this should only return a single light, but we want to account for the possibility of duplicate labels, confusing though that may make things.
-func (lc *LightCollection) GetForLabel(lbl string) []Light {
-	ret := make([]Light, 0)
+func (lc *LightCollection) GetForLabel(lbl string) []*Light {
+	ret := make([]*Light, 0)
 
 	lc.lightsLock.RLock()
 	defer lc.lightsLock.RUnlock()
 
 	for _, l := range lc.lights {
 		if l.Label() == lbl {
-			ret = append(ret, *l)
+			ret = append(ret, l)
 		}
 	}
 
