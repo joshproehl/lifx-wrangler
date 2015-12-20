@@ -11,8 +11,9 @@ import (
 type LightCollection struct {
 	watchdog   *Watchdog
 	lights     []*Light
-	lightsLock sync.RWMutex // This mutex should protect ALL of the various ways to access lights, as they should all be considered atomic.
 	lightsByIP map[string]*Light
+
+	sync.RWMutex // This mutex should protect ALL of the various ways to access lights, as they should all be considered atomic.
 }
 
 // NewLightCollection sets up and return a new LightCollection associated with a particular watchdog.
@@ -23,8 +24,8 @@ func NewLightCollection(w *Watchdog) *LightCollection {
 
 // Count returns the number of Lights currently in this collection
 func (lc *LightCollection) Count() int {
-	lc.lightsLock.RLock()
-	defer lc.lightsLock.RUnlock()
+	lc.RLock()
+	defer lc.RUnlock()
 
 	return len(lc.lights)
 }
@@ -32,8 +33,8 @@ func (lc *LightCollection) Count() int {
 // All returns pointers to to every light *CURRENTLY* being managed. Note that it does NOT return a pointer to the
 // managed array, so if a new light is added later, whatever holds this pointer won't get that update.
 func (lc *LightCollection) All() []*Light {
-	lc.lightsLock.RLock()
-	defer lc.lightsLock.RUnlock()
+	lc.RLock()
+	defer lc.RUnlock()
 
 	lightCopy := append([]*Light(nil), lc.lights...)
 
@@ -55,18 +56,18 @@ func (lc *LightCollection) RefreshBulbStates() {
 
 // LightForIP gets the pointer to the light for given IP string. If no light is found it creates a new one in the collection.
 func (lc *LightCollection) GetOrCreateLightForIP(ips string) *Light {
-	lc.lightsLock.RLock()
+	lc.RLock()
 	l, found := lc.lightsByIP[ips]
-	lc.lightsLock.RUnlock()
+	lc.RUnlock()
 	if found {
 		return l
 	} else {
-		lc.lightsLock.Lock() // TODO: We have a potential race condition here if something ELSE is trying to access the lock and gets inbetween these two calls!
+		lc.Lock() // TODO: We have a potential race condition here if something ELSE is trying to access the lock and gets inbetween these two calls!
 
 		nl := NewLight(lc.watchdog)
 		lc.lights = append(lc.lights, nl)
 		lc.lightsByIP[ips] = nl
-		lc.lightsLock.Unlock()
+		lc.Unlock()
 		return nl
 	}
 }
@@ -76,8 +77,8 @@ func (lc *LightCollection) GetOrCreateLightForIP(ips string) *Light {
 func (lc *LightCollection) GetForLabel(lbl string) []*Light {
 	ret := make([]*Light, 0)
 
-	lc.lightsLock.RLock()
-	defer lc.lightsLock.RUnlock()
+	lc.RLock()
+	defer lc.RUnlock()
 
 	for _, l := range lc.lights {
 		if l.Label() == lbl {

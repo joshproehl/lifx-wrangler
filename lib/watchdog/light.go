@@ -15,43 +15,42 @@ type Light struct {
 	state    *proto.LightState
 	lastseen time.Time
 
-	mutex sync.RWMutex
+	sync.RWMutex
 }
 
 func NewLight(w *Watchdog) *Light {
 	return &Light{
 		Watchdog: w,
-		mutex:    *new(sync.RWMutex),
 	}
 }
 
 // Label returns the text label of the bulb.
 func (l *Light) Label() string {
-	l.mutex.RLock()
-	defer l.mutex.RUnlock()
+	l.RLock()
+	defer l.RUnlock()
 
 	return l.state.Label.String()
 }
 
 func (l *Light) LastSeen() time.Time {
-	l.mutex.RLock()
-	defer l.mutex.RUnlock()
+	l.RLock()
+	defer l.RUnlock()
 
 	return l.lastseen
 }
 
 // SetState takes a state recieved over the network and updates the bulb's stored state accordingly.
 func (l *Light) GetState() proto.LightState {
-	l.mutex.RLock()
-	defer l.mutex.RUnlock()
+	l.RLock()
+	defer l.RUnlock()
 
 	return *l.state
 }
 
 // SetState takes a state recieved over the network and updates the bulb's stored state accordingly.
 func (l *Light) SetState(s *proto.LightState) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+	l.Lock()
+	defer l.Unlock()
 
 	l.lastseen = time.Now()
 	l.state = s
