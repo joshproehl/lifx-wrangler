@@ -5,7 +5,7 @@ import (
 	"fmt"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"github.com/pdf/golifx"
-	//"github.com/pdf/golifx/common"
+	"github.com/pdf/golifx/common"
 	"github.com/pdf/golifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"strings"
@@ -20,11 +20,15 @@ type Watchdog struct {
 	mqttClient *mqtt.Client
 	conf       *WatchdogConf
 	confLock   sync.RWMutex
+	quitChan   chan bool
 }
 
 // NewLifxWatchdog creates a new watchdog and starts it monitoring the LAN.
 func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
-	w := &Watchdog{conf: c}
+	w := &Watchdog{
+		conf:     c,
+		quitChan: make(chan bool),
+	}
 
 	if c.MQTTServer != "" {
 		opts := mqtt.NewClientOptions().AddBroker(c.MQTTServer).SetClientID(c.MQTTDeviceID).SetCleanSession(true)
@@ -51,6 +55,19 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 	}
 
 	// Todo: Set up channel monitoring to do MQTT dispatch
+	go func() {
+		clientSub := common.NewSubscription(w.Client)
+		events := clientSub.Events()
+		for {
+			select {
+			case <-w.quitChan:
+				jww.DEBUG.Println("Listener got told to quit!")
+				return
+			case e := <-events:
+				jww.DEBUG.Println("Listener got event:", e)
+			}
+		}
+	}()
 
 	jww.INFO.Println("Watchdog up and running.")
 	return w
@@ -58,7 +75,10 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 
 // Shutdown stops the watchdog and closes all resources.
 func (w *Watchdog) Shutdown() {
-	w.mqttClient.Disconnect(250)
+	if w.mqttClient != nil && w.mqttClient.IsConnected() {
+		w.mqttClient.Disconnect(250)
+	}
+	close(w.quitChan)
 }
 
 func mqttMessageReceived(client *mqtt.Client, msg mqtt.Message) {

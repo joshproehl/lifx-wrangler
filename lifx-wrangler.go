@@ -8,6 +8,9 @@ import (
 	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
 	jww "github.com/spf13/jwalterweatherman"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -57,6 +60,19 @@ func main() {
 		MQTTTopicPrefix:        *flgMQTTTopicPrefix,
 		MQTTDeviceID:           *flgMQTTDeviceID,
 	})
+
+	// Set up something to handle ctrl-c/kill cleanup!
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("")
+		watchdog.Shutdown()
+		// TODO: Graceful cleanup http's listenAndServe runner?
+		fmt.Println("Cleaned up and shut down.")
+		os.Exit(1)
+	}()
 
 	// Set up the HTTP router, followed by all the routes
 	router := bone.New()
