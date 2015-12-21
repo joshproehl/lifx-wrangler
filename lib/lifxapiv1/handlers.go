@@ -64,7 +64,6 @@ func (v *v1) LightsToggleHandler(w http.ResponseWriter, r *http.Request) {
 	buf.WriteString("{\"results\":[")
 	resCount := len(res)
 	for i, l := range res {
-		l.TurnOff()
 		buf.WriteString(lightsToggleHandlerJSON(l))
 
 		if i < resCount-1 {

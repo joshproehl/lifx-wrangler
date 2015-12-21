@@ -4,39 +4,27 @@ import (
 	//"errors"
 	"fmt"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
-	proto "github.com/joshproehl/go-lifx/protocol"
+	"github.com/pdf/golifx"
+	//"github.com/pdf/golifx/common"
+	"github.com/pdf/golifx/protocol"
 	jww "github.com/spf13/jwalterweatherman"
 	"strings"
 	"sync"
-	"time"
+	//"time"
 )
 
 // Watchdog monitors the messages coming over the LAN and keeps information about all of the Lights it hears.
 // It also acts as client, and allows interaction with lights on the LAN.
 type Watchdog struct {
-	connected       bool
-	connection      *proto.Connection
-	messages        <-chan proto.Message
-	errors          <-chan error
-	LightCollection *LightCollection
-	mqttClient      *mqtt.Client
-	conf            *WatchdogConf
-	confLock        sync.RWMutex
+	Client     *golifx.Client
+	mqttClient *mqtt.Client
+	conf       *WatchdogConf
+	confLock   sync.RWMutex
 }
 
 // NewLifxWatchdog creates a new watchdog and starts it monitoring the LAN.
 func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 	w := &Watchdog{conf: c}
-	if conn, err := proto.Connect(); err == nil {
-		w.connection = conn
-		w.connected = true
-	}
-
-	messages, errors := w.connection.Listen()
-
-	w.messages = messages
-	w.errors = errors
-	w.LightCollection = NewLightCollection(w)
 
 	if c.MQTTServer != "" {
 		opts := mqtt.NewClientOptions().AddBroker(c.MQTTServer).SetClientID(c.MQTTDeviceID).SetCleanSession(true)
@@ -55,9 +43,14 @@ func NewLifxWatchdog(c *WatchdogConf) *Watchdog {
 	}
 
 	// Start the watchdog listening for packets from bulbs!
-	w.monitorAndUpdate()
+	var err error
+	w.Client, err = golifx.NewClient(&protocol.V2{Reliable: true})
+	if err != nil {
+		jww.FATAL.Println("Error setting up LIFX:", err)
+		panic(err)
+	}
 
-	w.SendMessage(proto.LightGet{})
+	// Todo: Set up channel monitoring to do MQTT dispatch
 
 	jww.INFO.Println("Watchdog up and running.")
 	return w
@@ -86,6 +79,7 @@ func (w *Watchdog) mqttPublish(topic string, message string) error {
 	return nil
 }
 
+/*
 // monitorAndUpdate listens to the local network and updates our state with what it hears.
 // for anything non-trivial this loop should dispatch on a new goroutine in order to let
 // the monitor keep looping and not miss any packets.
@@ -113,16 +107,7 @@ func (w *Watchdog) monitorAndUpdate() {
 		}
 	}(w)
 }
-
-// SendMessage sends a payload out over the network and returns
-func (w *Watchdog) SendMessage(payload proto.Payload) ([]byte, error) {
-	msg := proto.Message{}
-	msg.Payload = payload
-	//data := make([]byte, 0)
-
-	err := w.connection.WriteMessage(msg)
-	return nil, err
-}
+*/
 
 // GetConf returns the current configuration of the Watchdog
 func (w *Watchdog) GetConf() *WatchdogConf {
@@ -138,9 +123,4 @@ func (w *Watchdog) SetConf(nc *WatchdogConf) {
 	defer w.confLock.Unlock()
 
 	w.conf = nc
-}
-
-// GetLightCount returns the number of lights that we're currently tracking
-func (w *Watchdog) GetLightCount() int {
-	return w.LightCollection.Count()
 }

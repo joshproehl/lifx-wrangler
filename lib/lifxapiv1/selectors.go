@@ -3,8 +3,9 @@ package lifxapiv1
 import (
 	"errors"
 	"fmt"
-	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
+	"github.com/pdf/golifx/common"
 	"regexp"
+	"strconv"
 )
 
 // Set up the regexes needed for handling lifxAPI selector strings
@@ -19,45 +20,44 @@ var (
 )
 
 // GetForSelector takes a selector string used by the LIFX HTTP API and returns the lights managed by the watchdog that are found by that selector
-func (v *v1) GetForSelector(s string) ([]*wd.Light, error) {
+func (v *v1) GetForSelector(s string) ([]common.Light, error) {
 	switch {
 	case regexAll.MatchString(s):
-		return v.watchdog.LightCollection.All(), nil
+		return v.watchdog.Client.GetLights()
 
 	case regexLabel.MatchString(s):
 		label := regexLabel.ReplaceAllLiteralString(s, "") // Get the actual label value by erasing the prefix that we matched.
-		lights := v.watchdog.LightCollection.GetForLabel(label)
-		if len(lights) == 0 {
-			return nil, errors.New(fmt.Sprintf("Could not find light with label: %s", label))
-		}
-
-		return lights, nil
+		return wrapSingleResult(v.watchdog.Client.GetLightByLabel(label))
 
 	case regexId.MatchString(s):
-		lights := v.watchdog.LightCollection.All()
-		return lights, nil
+		idStr := regexId.ReplaceAllLiteralString(s, "") // Get the actual label value by erasing the prefix that we matched.
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Unable to parse ID to int. Error was:", err))
+		}
+		return wrapSingleResult(v.watchdog.Client.GetLightByID(id))
 
 	case regexGroupId.MatchString(s):
-
-		lights := v.watchdog.LightCollection.All()
-		if len(lights) == 0 {
-			return nil, errors.New(fmt.Sprintf("Could not find group_id: %s", s))
-		}
-		return lights, nil
+		// TODO: Return results matched be selector
+		return v.watchdog.Client.GetLights()
 
 	case regexLocationId.MatchString(s):
-		lights := v.watchdog.LightCollection.All()
-		return lights, nil
+		// TODO: Return results matched be selector
+		return v.watchdog.Client.GetLights()
 
 	case regexLocation.MatchString(s):
-		lights := v.watchdog.LightCollection.All()
-		return lights, nil
+		// TODO: Return results matched be selector
+		return v.watchdog.Client.GetLights()
 
 	case regexSceneId.MatchString(s):
-		lights := v.watchdog.LightCollection.All()
-		return lights, nil
+		// TODO: Return results matched be selector
+		return v.watchdog.Client.GetLights()
 
 	default:
 		return nil, errors.New(fmt.Sprintf("Unknown selector type: '%s'", s))
 	}
+}
+
+func wrapSingleResult(l common.Light, e error) ([]common.Light, error) {
+	return []common.Light{l}, e
 }

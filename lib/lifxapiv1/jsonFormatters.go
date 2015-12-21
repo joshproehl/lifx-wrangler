@@ -3,8 +3,9 @@ package lifxapiv1
 import (
 	"bytes"
 	//"time"
-	//proto "github.com/joshproehl/go-lifx/lib/protocol"
-	wd "github.com/joshproehl/lifx-wrangler/lib/watchdog"
+	"github.com/pdf/golifx/common"
+	jww "github.com/spf13/jwalterweatherman"
+	"strconv"
 )
 
 const (
@@ -48,22 +49,26 @@ const (
     }
   }
 */
-func lightsHandlerJSON(l *wd.Light) string {
-	s := l.GetState()
+func lightsHandlerJSON(l common.Light) string {
 	buf := new(bytes.Buffer)
 
+	lbl, err := l.GetLabel()
+	if err != nil {
+		jww.ERROR.Println("lightsHandlerJSON error getting label:", err)
+	}
+
 	buf.WriteString("{")
-	buf.WriteString("\"id\": \"\",")
+	buf.WriteString("\"id\": \"" + strconv.Itoa(int(l.ID())) + "\",")
 	buf.WriteString("\"uuid\": \"\",")
-	buf.WriteString("\"label\": \"" + s.Label.String() + "\",")
+	buf.WriteString("\"label\": \"" + lbl + "\",")
 	buf.WriteString("\"connected\": \"\",")
 	buf.WriteString("\"power\": \"\",")
 	buf.WriteString("\"color\": {")
-	buf.WriteString("\"hue\":\"" + s.Color.Hue.String() + "\",")
-	buf.WriteString("\"saturation\":\"" + s.Color.Saturation.String() + "\",")
-	buf.WriteString("\"kelvin\":\"" + s.Color.Kelvin.String() + "\"")
+	buf.WriteString("\"hue\":\"" + strconv.Itoa(int(l.CachedColor().Hue)) + "\",")
+	buf.WriteString("\"saturation\":\"" + strconv.Itoa(int(l.CachedColor().Saturation)) + "\",")
+	buf.WriteString("\"kelvin\":\"" + strconv.Itoa(int(l.CachedColor().Kelvin)) + "\"")
 	buf.WriteString("},")
-	buf.WriteString("\"brightness\":\"" + "" + "\",")
+	buf.WriteString("\"brightness\":\"" + strconv.Itoa(int(l.CachedColor().Brightness)) + "\",")
 	buf.WriteString("\"group\": {")
 	buf.WriteString("\"id\":\"" + "" + "\",")
 	buf.WriteString("\"name\":\"" + "" + "\"")
@@ -72,7 +77,8 @@ func lightsHandlerJSON(l *wd.Light) string {
 	buf.WriteString("\"id\":\"" + "" + "\",")
 	buf.WriteString("\"name\":\"" + "" + "\"")
 	buf.WriteString("},")
-	buf.WriteString("\"last_seen\":\"" + l.LastSeen().Format(LIFXTimeFormat) + "\",")
+	buf.WriteString("\"last_seen\":\"" + "" + "\",")
+	//buf.WriteString("\"last_seen\":\"" + l.LastSeen().Format(LIFXTimeFormat) + "\",")
 	buf.WriteString("\"seconds_since_seen\":1,") // time.Now() - l.LastSeen()
 	buf.WriteString("\"product\": {")
 	buf.WriteString("\"name\":\"" + "" + "\",")
@@ -102,13 +108,17 @@ func lightsHandlerJSON(l *wd.Light) string {
 
 	Note that we're actually creating one of the objects from inside the results array here.
 */
-func lightsToggleHandlerJSON(l *wd.Light) string {
-	s := l.GetState()
+func lightsToggleHandlerJSON(l common.Light) string {
+	lbl, err := l.GetLabel()
+	if err != nil {
+		jww.ERROR.Println("lightsToggleHandlerJSON error getting label:", err)
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.WriteString("{")
 	buf.WriteString("\"id\": \"\",")
-	buf.WriteString("\"label\": \"" + s.Label.String() + "\",")
+	buf.WriteString("\"label\": \"" + lbl + "\",")
 	buf.WriteString("\"status\": \"\"")
 	buf.WriteString("}")
 
